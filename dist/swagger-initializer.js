@@ -8,7 +8,9 @@ window.onload = function() {
     deepLinking: true,
     presets: [
       SwaggerUIBundle.presets.apis,
-    ]
+      SwaggerUIStandalonePreset
+    ],
+    layout: "StandaloneLayout"
   });
 
   //</editor-fold>

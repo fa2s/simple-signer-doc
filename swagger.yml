@@ -3,58 +3,49 @@ info:
   title: API Title
   version: '0.1'
 servers:
-  - url: https://example.com
+  - url: https://staging.fa2s.com.br
+    description: Staging Server
+  - url: https://signer.fa2s.com.br
+    description: Production Server
+  - url: "{protocol}://{host}:{port}"
+    description: Any Server
+    variables:
+      host:
+        default: localhost
+      protocol:
+        enum:
+          - http
+          - https
+        default: http
+      port:
+        default: 3000
+security:
+  - ApiKeyAuth: []
 paths:
-  /transactions:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NewTransaction'
+  /api/account:
+    get:
       responses:
         200:
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Transaction'
-        422:
-          description: Failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Errors'
-  /transactions/{key}/attachments:
-    post:
-      parameters:
-        - $ref: '#/components/parameters/key'
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                attachments:
-                  type: array
-                  items:
-                    oneOf:
-                      - $ref: '#/components/schemas/Base64'
-                      - $ref: '#/components/schemas/Reference'
+                $ref: '#/components/schemas/account'
+  /api/envelopes:
+    get:
       responses:
         200:
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Transaction'
-        422:
-          description: Failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Errors'
-  /transactions/{key}/finish:
+                type: object
+                properties:
+                  envelopes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/envelope'
+  /api/envelopes/{key}/finish:
     post:
       parameters:
         - $ref: '#/components/parameters/key'
@@ -64,46 +55,154 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Transaction'
+                $ref: '#/components/schemas/envelope'
         422:
           description: Failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Errors'
+                $ref: '#/components/schemas/error'
+  /api/webhooks:
+    get:
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhooks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/webhook'
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/new-webhook'
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/webhook'
+  /api/webhooks/{key}:
+    delete:
+      responses:
+        204:
+          description: Webhook deleted
+        404:
+          description: Webhook not found
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
   parameters:
     key:
       name: key
       in: path
       schema:
         type: string
-        format: uuid
       required: true
   schemas:
-    Base64:
+    account:
       type: object
       properties:
+        key:
+          type: string
+          format: uuid
+          example: 8d1146c6-75a0-445c-9a6d-12b3ad6d640e
         name:
           type: string
-        data:
-          type: string
-          format: byte
-    Errors:
+    envelope:
       type: object
-      additionalProperties:
-        description: Nome do campo
-        type: array
-        items:
-          description: Descrição do erro
+      properties:
+        key:
           type: string
-      example:
-        name:
-          - é muito curto
-          - não é válido
+          format: uuid
+          example: 494b9418-1cfd-4a7a-abb9-017efdd697d1
+        status:
+          type: string
+          enum:
+            - opened
+            - stalled
+            - finished
         contents:
-          - está vazio
-    Document:
+          type: array
+          items:
+            $ref: '#/components/schemas/content'
+    content:
+      type: object
+      properties:
+        key:
+          type: string
+          format: uuid
+          example: 0af61f2d-e3d7-4bc5-a07b-6220fcfd6a81
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        tag:
+          type: array
+          items:
+            $ref: '#/components/schemas/tag'
+        log:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/event'
+    tag:
+      type: array
+      items:
+        type: string
+    event:
+      type: object
+      properties:
+        key:
+          type: string
+          format: uuid
+          example: 749edaf6-1ef6-4347-9882-94874c809df7
+        type:
+          type: string
+          enum:
+            - signature
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/signature'
+            - $ref: '#/components/schemas/finish'
+          discriminator:
+            propertyName: type
+    signature:
+      type: object
+      properties:
+        ip:
+          type: string
+        name:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/document'
+    finish:
+      type: object
+      properties:
+        ip:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+    document:
       type: object
       properties:
         name:
@@ -113,64 +212,32 @@ components:
             - rg
         value:
           type: string
-    Reference:
+    new-webhook:
       type: object
       properties:
-        name:
-          type: string
         url:
           type: string
           format: uri
-    BaseTransaction:
+          example: http://example.com/callback
+      required:
+        - url
+    webhook:
       type: object
-      properties:
-        name:
-          type: string
-        documents:
-          type: array
-          items:
-            $ref: '#/components/schemas/Document'
-          minItems: 1
-      required:
-        - name
-        - documents
-    NewTransaction:
       allOf:
-        - $ref: '#/components/schemas/BaseTransaction'
-        - type: object
-          properties:
-            contents:
-              type: array
-              items:
-                oneOf:
-                  - $ref: '#/components/schemas/Base64'
-                  - $ref: '#/components/schemas/Reference'
-              minItems: 1
-            attachments:
-              type: array
-              items:
-                oneOf:
-                  - $ref: '#/components/schemas/Base64'
-                  - $ref: '#/components/schemas/Reference'
-      required:
-        - contents
-    Transaction:
-      allOf:
-        - $ref: '#/components/schemas/BaseTransaction'
         - type: object
           properties:
             key:
               type: string
               format: uuid
-            contents:
-              type: array
-              items:
-                $ref: '#/components/schemas/Reference'
-            attachments:
-              type: array
-              items:
-                $ref: '#/components/schemas/Reference'
-      required:
-        - key
-        - contents
-        - attachments
+              example: 18022867-68a1-40be-9dc6-03588d22e6e3
+        - $ref: '#/components/schemas/new-webhook'
+    error:
+      type: object
+      additionalProperties:
+        description: Nome do campo
+        type: array
+        items:
+      example:
+        name:
+          - é muito curto
+          - não é válido
