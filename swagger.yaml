@@ -1,0 +1,176 @@
+openapi: 3.0.3
+info:
+  title: API Title
+  version: '0.1'
+servers:
+  - url: https://example.com
+paths:
+  /transactions:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewTransaction'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        422:
+          description: Failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
+  /transactions/{key}/attachments:
+    post:
+      parameters:
+        - $ref: '#/components/parameters/key'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                attachments:
+                  type: array
+                  items:
+                    oneOf:
+                      - $ref: '#/components/schemas/Base64'
+                      - $ref: '#/components/schemas/Reference'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        422:
+          description: Failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
+  /transactions/{key}/finish:
+    post:
+      parameters:
+        - $ref: '#/components/parameters/key'
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        422:
+          description: Failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Errors'
+components:
+  parameters:
+    key:
+      name: key
+      in: path
+      schema:
+        type: string
+        format: uuid
+      required: true
+  schemas:
+    Base64:
+      type: object
+      properties:
+        name:
+          type: string
+        data:
+          type: string
+          format: byte
+    Errors:
+      type: object
+      additionalProperties:
+        description: Nome do campo
+        type: array
+        items:
+          description: Descrição do erro
+          type: string
+      example:
+        name:
+          - é muito curto
+          - não é válido
+        contents:
+          - está vazio
+    Document:
+      type: object
+      properties:
+        name:
+          type: string
+          enum:
+            - cpf
+            - rg
+        value:
+          type: string
+    Reference:
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+    BaseTransaction:
+      type: object
+      properties:
+        name:
+          type: string
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Document'
+          minItems: 1
+      required:
+        - name
+        - documents
+    NewTransaction:
+      allOf:
+        - $ref: '#/components/schemas/BaseTransaction'
+        - type: object
+          properties:
+            contents:
+              type: array
+              items:
+                oneOf:
+                  - $ref: '#/components/schemas/Base64'
+                  - $ref: '#/components/schemas/Reference'
+              minItems: 1
+            attachments:
+              type: array
+              items:
+                oneOf:
+                  - $ref: '#/components/schemas/Base64'
+                  - $ref: '#/components/schemas/Reference'
+      required:
+        - contents
+    Transaction:
+      allOf:
+        - $ref: '#/components/schemas/BaseTransaction'
+        - type: object
+          properties:
+            key:
+              type: string
+              format: uuid
+            contents:
+              type: array
+              items:
+                $ref: '#/components/schemas/Reference'
+            attachments:
+              type: array
+              items:
+                $ref: '#/components/schemas/Reference'
+      required:
+        - key
+        - contents
+        - attachments
