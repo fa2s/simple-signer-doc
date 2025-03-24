@@ -57,6 +57,8 @@ paths:
     get:
       summary: Mostra envelope
       description: Retorna dados de um envelope.
+      parameters:
+        - $ref: '#/components/parameters/key'
       responses:
         200:
           description: Retorna um envelope no índice `envelope`
@@ -87,12 +89,10 @@ paths:
                 properties:
                   envelope:
                     $ref: '#/components/schemas/envelope'
+        404:
+          description: Envelope não encontrado na conta
         422:
-          description: A finalização do envelope falhou. Consultar mensagem de erro para obter mais detalhes.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/error'
+          description: A finalização do envelope falhou. Consultar corpo da resposta para obter mais detalhes.
       tags:
         - envelopes
   /api/webhooks:
@@ -131,17 +131,23 @@ paths:
                 properties:
                   webhook:
                     $ref: '#/components/schemas/webhook'
+        422:
+          description: Criação de webhook falhou. Consultar corpo da resposta para obter mais detalhes.
       tags:
         - webhooks
   /api/webhooks/{key}:
     delete:
       summary: Deleta webhook
       description: Deleta um webhook. Chamadas agendadas para o webhook deixarão de serem executadas.
+      parameters:
+        - $ref: '#/components/parameters/key'
       responses:
         204:
           description: Webhook deletado.
         404:
           description: Webhook não encontrado na conta.
+        422:
+          description: Deleção de webhook falhou. Consultar corpo da resposta para obter mais detalhes.
       tags:
         - webhooks
 components:
@@ -288,13 +294,3 @@ components:
               examples:
                 - 18022867-68a1-40be-9dc6-03588d22e6e3
         - $ref: '#/components/schemas/new-webhook'
-    error:
-      type: object
-      additionalProperties:
-        description: Nome do campo
-        type: array
-        items:
-      example:
-        name:
-          - é muito curto
-          - não é válido
