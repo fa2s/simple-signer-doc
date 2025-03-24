@@ -10,7 +10,8 @@ window.onload = function() {
       SwaggerUIBundle.presets.apis,
       SwaggerUIStandalonePreset
     ],
-    layout: "StandaloneLayout"
+    layout: "StandaloneLayout",
+    defaultModelsExpandDepth: -1
   });
 
   //</editor-fold>
