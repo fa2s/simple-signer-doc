@@ -1,7 +1,7 @@
-openapi: 3.0.3
+openapi: 3.1.1
 info:
-  title: API Title
-  version: '0.1'
+  title: Simple Signer
+  version: '0.9'
 servers:
   - url: https://staging.fa2s.com.br
     description: Staging Server
@@ -24,6 +24,8 @@ security:
 paths:
   /api/account:
     get:
+      summary: Mostra conta autenticada
+      description: Útil para descobrir a quem o token de autenticação pertence.
       responses:
         200:
           description: OK
@@ -31,11 +33,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/account'
+      tags:
+        - account
   /api/envelopes:
     get:
+      summary: Lista envelopes
+      description: Retorna todos os envelopes da conta. **Não utilizar em production**
       responses:
         200:
-          description: OK
+          description: Retorna um array de envelopes no índice `envelopes`
           content:
             application/json:
               schema:
@@ -45,28 +51,57 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/envelope'
-  /api/envelopes/{key}/finish:
-    post:
-      parameters:
-        - $ref: '#/components/parameters/key'
+      tags:
+        - envelopes
+  /api/envelopes/{key}:
+    get:
+      summary: Mostra envelope
+      description: Retorna dados de um envelope.
       responses:
         200:
-          description: OK
+          description: Retorna um envelope no índice `envelope`
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/envelope'
+                type: object
+                properties:
+                  envelope:
+                    $ref: '#/components/schemas/envelope'
+        404:
+          description: Envelope não encontrado na conta
+      tags:
+        - envelopes
+  /api/envelopes/{key}/finish:
+    post:
+      summary: Finaliza envelope
+      description: Após finalizado um envelope não poderá mais ser modificado. Seu log é gerado e os _webhooks_ executados. Após 90 dias o envelope será coletado.
+      parameters:
+        - $ref: '#/components/parameters/key'
+      responses:
+        202:
+          description: O envelope foi marcado para ser finalizado com sucesso.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  envelope:
+                    $ref: '#/components/schemas/envelope'
         422:
-          description: Failed
+          description: A finalização do envelope falhou. Consultar mensagem de erro para obter mais detalhes.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/error'
+      tags:
+        - envelopes
   /api/webhooks:
     get:
+      summary: Lista webhooks
+      description: Retorna todos os _webhooks_ da conta.
       responses:
         200:
-          description: OK
+          description: Retorna um _array_ de _webhooks_ no índice `webhooks`.
           content:
             application/json:
               schema:
@@ -76,7 +111,11 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/webhook'
+      tags:
+        - webhooks
     post:
+      summary: Cria webhook
+      description: Cria um webhook na conta. O webhook é disparado um `POST` toda vez que algum evento aconter em algum documento da conta.
       requestBody:
         content:
           application/json:
@@ -84,18 +123,27 @@ paths:
               $ref: '#/components/schemas/new-webhook'
       responses:
         201:
-          description: Created
+          description: Webhook criado com sucesso
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/webhook'
+                type: object
+                properties:
+                  webhook:
+                    $ref: '#/components/schemas/webhook'
+      tags:
+        - webhooks
   /api/webhooks/{key}:
     delete:
+      summary: Deleta webhook
+      description: Deleta um webhook. Chamadas agendadas para o webhook deixarão de serem executadas.
       responses:
         204:
-          description: Webhook deleted
+          description: Webhook deletado.
         404:
-          description: Webhook not found
+          description: Webhook não encontrado na conta.
+      tags:
+        - webhooks
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -116,16 +164,21 @@ components:
         key:
           type: string
           format: uuid
-          example: 8d1146c6-75a0-445c-9a6d-12b3ad6d640e
+          examples:
+            - 8d1146c6-75a0-445c-9a6d-12b3ad6d640e
         name:
           type: string
+          examples:
+            - ACME Inc.
+            - Example Org
     envelope:
       type: object
       properties:
         key:
           type: string
           format: uuid
-          example: 494b9418-1cfd-4a7a-abb9-017efdd697d1
+          examples:
+            - 494b9418-1cfd-4a7a-abb9-017efdd697d1
         status:
           type: string
           enum:
@@ -142,7 +195,8 @@ components:
         key:
           type: string
           format: uuid
-          example: 0af61f2d-e3d7-4bc5-a07b-6220fcfd6a81
+          examples:
+          - 0af61f2d-e3d7-4bc5-a07b-6220fcfd6a81
         name:
           type: string
         url:
@@ -169,7 +223,8 @@ components:
         key:
           type: string
           format: uuid
-          example: 749edaf6-1ef6-4347-9882-94874c809df7
+          examples:
+            - 749edaf6-1ef6-4347-9882-94874c809df7
         type:
           type: string
           enum:
@@ -218,7 +273,8 @@ components:
         url:
           type: string
           format: uri
-          example: http://example.com/callback
+          examples:
+            - http://example.com/callback
       required:
         - url
     webhook:
@@ -229,7 +285,8 @@ components:
             key:
               type: string
               format: uuid
-              example: 18022867-68a1-40be-9dc6-03588d22e6e3
+              examples:
+                - 18022867-68a1-40be-9dc6-03588d22e6e3
         - $ref: '#/components/schemas/new-webhook'
     error:
       type: object
